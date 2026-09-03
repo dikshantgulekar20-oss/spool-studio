@@ -39,6 +39,10 @@ export class ApiError extends Error {
     return new ApiError(message, 404)
   }
 
+  static unprocessable(message = "Unprocessable entity", issues?: ApiIssue[]) {
+    return new ApiError(message, 422, issues)
+  }
+
   static conflict(message = "Conflict") {
     return new ApiError(message, 409)
   }

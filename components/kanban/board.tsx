@@ -19,8 +19,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { StatusBadge } from "@/components/assets/status-badge"
 import { getAssetIcon, getAssetPreviewType } from "@/lib/asset-display"
 import {
+  canDropOnColumn,
+  getIllegalDropReason,
   getKanbanWorkflowColumnId,
-  getKanbanWorkflowColumnIndex,
   getKanbanWorkflowStatusForColumn,
   isKanbanHiddenStatus,
   type KanbanWorkflowColumnId,
@@ -32,6 +33,7 @@ import type { Asset, AssetStatus } from "@/types/index"
 interface KanbanBoardProps {
   assets: Asset[]
   onStatusChange?: (assetId: string, newStatus: AssetStatus) => void
+  onQuickApprove?: (assetId: string) => void
   canApprove?: boolean
 }
 
@@ -224,7 +226,7 @@ function KanbanColumn({
   draggedItem,
   onDragStart,
   onDrop,
-  onStatusChange,
+  onQuickApprove,
   canApprove = true,
 }: {
   status: (typeof kanbanWorkflowColumns)[number]
@@ -234,10 +236,19 @@ function KanbanColumn({
   draggedItem: { assetId: string; fromStatus: AssetStatus } | null
   onDragStart: (assetId: string, status: AssetStatus) => void
   onDrop: (e: React.DragEvent, toColumnId: KanbanWorkflowColumnId) => void
-  onStatusChange?: (assetId: string, newStatus: AssetStatus) => void
+  onQuickApprove?: (assetId: string) => void
   canApprove?: boolean
 }) {
   const [isDragOver, setIsDragOver] = useState(false)
+  const isDraggingActive = draggedItem !== null
+  const isLegalTarget =
+    !isDraggingActive ||
+    (draggedItem
+      ? canDropOnColumn(draggedItem.fromStatus, status.id)
+      : false)
+  const illegalReason = draggedItem
+    ? getIllegalDropReason(draggedItem.fromStatus, status.id)
+    : null
 
   let dotColor = "#52525b"
   if (status.id === "draft") dotColor = "#525252"
@@ -288,13 +299,29 @@ function KanbanColumn({
           setIsDragOver(false)
           onDrop(e, status.id)
         }}
+        title={
+          isDraggingActive && !isLegalTarget && illegalReason
+            ? illegalReason
+            : undefined
+        }
         animate={{
-          backgroundColor: isDragOver
-            ? "rgba(255,255,255,0.03)"
-            : "rgba(255,255,255,0)",
-          borderColor: isDragOver
-            ? "rgba(16,185,129,0.3)"
-            : "rgba(255,255,255,0.06)",
+          backgroundColor:
+            isDragOver && isLegalTarget
+              ? "rgba(16,185,129,0.06)"
+              : isDragOver
+                ? "rgba(239,68,68,0.05)"
+                : isDraggingActive && isLegalTarget
+                  ? "rgba(16,185,129,0.03)"
+                  : "rgba(255,255,255,0)",
+          borderColor:
+            isDragOver && isLegalTarget
+              ? "rgba(16,185,129,0.4)"
+              : isDragOver
+                ? "rgba(239,68,68,0.3)"
+                : isDraggingActive && isLegalTarget
+                  ? "rgba(16,185,129,0.25)"
+                  : "rgba(255,255,255,0.06)",
+          opacity: isDraggingActive && !isLegalTarget ? 0.55 : 1,
         }}
         transition={{ duration: 0.15 }}
         className="kanban-column-body border border-transparent rounded-lg"
@@ -338,10 +365,15 @@ function KanbanColumn({
             columnAssets.map((asset) => (
               <div
                 key={asset.id}
-                draggable={canApprove}
+                draggable={canApprove && asset.status !== "scheduled"}
                 onDragStart={
-                  canApprove
+                  canApprove && asset.status !== "scheduled"
                     ? () => onDragStart(asset.id, asset.status)
+                    : undefined
+                }
+                title={
+                  asset.status === "scheduled"
+                    ? "Scheduled assets can't be moved until published or archived"
                     : undefined
                 }
                 className="last:mb-0"
@@ -351,8 +383,8 @@ function KanbanColumn({
                   isDragging={draggedItem?.assetId === asset.id}
                   canApprove={canApprove}
                   onQuickApprove={
-                    onStatusChange && asset.status === "revision_requested"
-                      ? () => onStatusChange(asset.id, "approved")
+                    onQuickApprove && asset.status === "revision_requested"
+                      ? () => onQuickApprove(asset.id)
                       : undefined
                   }
                 />
@@ -365,7 +397,7 @@ function KanbanColumn({
   )
 }
 
-export function KanbanBoard({ assets, onStatusChange, canApprove = true }: KanbanBoardProps) {
+export function KanbanBoard({ assets, onStatusChange, onQuickApprove, canApprove = true }: KanbanBoardProps) {
   const collapsedColumnIds = useKanbanStore((state) => state.collapsedColumns)
   const toggleColumnStore = useKanbanStore((state) => state.toggleColumn)
   const collapsedColumns = new Set(collapsedColumnIds)
@@ -418,25 +450,31 @@ export function KanbanBoard({ assets, onStatusChange, canApprove = true }: Kanba
     toColumnId: KanbanWorkflowColumnId,
   ) => {
     e.preventDefault()
-    const targetStatus = getKanbanWorkflowStatusForColumn(toColumnId)
-
-    if (!draggedItem || draggedItem.fromStatus === targetStatus) {
+    if (!draggedItem) {
       setDraggedItem(null)
       return
     }
 
     const fromColumnId = getKanbanWorkflowColumnId(draggedItem.fromStatus)
-    const fromIndex = getKanbanWorkflowColumnIndex(fromColumnId)
-    const toIndex = getKanbanWorkflowColumnIndex(toColumnId)
+    if (fromColumnId === toColumnId) {
+      setDraggedItem(null)
+      return
+    }
 
-    if (Math.abs(fromIndex - toIndex) > 1) {
+    if (!canDropOnColumn(draggedItem.fromStatus, toColumnId)) {
+      setDraggedItem(null)
+      return
+    }
+
+    const targetStatus = getKanbanWorkflowStatusForColumn(toColumnId)
+    if (draggedItem.fromStatus === targetStatus) {
       setDraggedItem(null)
       return
     }
 
     const assetId = draggedItem.assetId
     setDraggedItem(null)
-    onStatusChange?.(assetId, getKanbanWorkflowStatusForColumn(toColumnId))
+    onStatusChange?.(assetId, targetStatus)
   }
 
   const assetsByStatus = useMemo(() => {
@@ -470,7 +508,7 @@ export function KanbanBoard({ assets, onStatusChange, canApprove = true }: Kanba
             draggedItem={draggedItem}
             onDragStart={handleDragStart}
             onDrop={handleDrop}
-            onStatusChange={onStatusChange}
+            onQuickApprove={onQuickApprove}
             canApprove={canApprove}
           />
         ))}

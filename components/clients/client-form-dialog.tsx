@@ -36,6 +36,8 @@ const formSchema = z
     brandColor: z.string().optional(),
     monthlyReelsTarget: z.string().optional(),
     monthlyPostsTarget: z.string().optional(),
+    weeklyPosterGoal: z.string().optional(),
+    weeklyReelGoal: z.string().optional(),
     contractStartDate: z.string().optional(),
     contractEndDate: z.string().optional(),
   })
@@ -91,10 +93,21 @@ export function ClientFormDialog({
       brandColor: "",
       monthlyReelsTarget: "",
       monthlyPostsTarget: "",
+      weeklyPosterGoal: "",
+      weeklyReelGoal: "",
       contractStartDate: "",
       contractEndDate: "",
     },
   })
+
+  const monthlyReelsWatched = form.watch("monthlyReelsTarget")
+  const monthlyPostsWatched = form.watch("monthlyPostsTarget")
+  const suggestedWeeklyReelGoal = Math.round(
+    (Number(monthlyReelsWatched) || 0) / 4,
+  )
+  const suggestedWeeklyPosterGoal = Math.round(
+    (Number(monthlyPostsWatched) || 0) / 4,
+  )
 
   useEffect(() => {
     if (open) {
@@ -112,6 +125,14 @@ export function ClientFormDialog({
             client.monthlyPostsTarget !== undefined
               ? client.monthlyPostsTarget.toString()
               : "",
+          weeklyPosterGoal:
+            client.weeklyPosterGoal !== undefined
+              ? client.weeklyPosterGoal.toString()
+              : "",
+          weeklyReelGoal:
+            client.weeklyReelGoal !== undefined
+              ? client.weeklyReelGoal.toString()
+              : "",
           contractStartDate: client.contractStartDate
             ? new Date(client.contractStartDate).toISOString().split("T")[0]
             : "",
@@ -127,6 +148,8 @@ export function ClientFormDialog({
           brandColor: "",
           monthlyReelsTarget: "",
           monthlyPostsTarget: "",
+          weeklyPosterGoal: "",
+          weeklyReelGoal: "",
           contractStartDate: "",
           contractEndDate: "",
         })
@@ -146,6 +169,12 @@ export function ClientFormDialog({
         brandColor: values.brandColor?.trim() || undefined,
         monthlyReelsTarget: toNumber(values.monthlyReelsTarget),
         monthlyPostsTarget: toNumber(values.monthlyPostsTarget),
+        ...(isEditMode
+          ? {
+              weeklyPosterGoal: toNumber(values.weeklyPosterGoal),
+              weeklyReelGoal: toNumber(values.weeklyReelGoal),
+            }
+          : {}),
         contractStartDate: values.contractStartDate || undefined,
         contractEndDate: values.contractEndDate || undefined,
       }
@@ -301,6 +330,56 @@ export function ClientFormDialog({
                 )}
               />
             </div>
+
+            {isEditMode && (
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="weeklyPosterGoal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Weekly Posters Goal</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="weeklyReelGoal"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Weekly Reels Goal</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                  Suggested weekly goals based on monthly targets:{" "}
+                  {suggestedWeeklyPosterGoal} posters,{" "}
+                  {suggestedWeeklyReelGoal} reels per week.
+                </div>
+              </>
+            )}
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <FormField

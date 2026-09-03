@@ -1,3 +1,4 @@
+import { getAllowedTransitions } from "@/lib/asset-workflow"
 import type { AssetStatus } from "@/types/index"
 
 export type KanbanWorkflowColumnId =
@@ -97,4 +98,35 @@ export function getKanbanWorkflowColumnIndex(
   columnId: KanbanWorkflowColumnId,
 ): number {
   return kanbanWorkflowColumnIds.indexOf(columnId)
+}
+
+export function getLegalDropColumnIds(
+  fromStatus: AssetStatus,
+): KanbanWorkflowColumnId[] {
+  const fromColumnId = getKanbanWorkflowColumnId(fromStatus)
+  return kanbanWorkflowColumnIds.filter(
+    (columnId) =>
+      columnId === fromColumnId ||
+      getAllowedTransitions(fromStatus).includes(
+        getKanbanWorkflowStatusForColumn(columnId),
+      ),
+  )
+}
+
+export function canDropOnColumn(
+  fromStatus: AssetStatus,
+  toColumnId: KanbanWorkflowColumnId,
+): boolean {
+  if (getKanbanWorkflowColumnId(fromStatus) === toColumnId) return true
+  return getAllowedTransitions(fromStatus).includes(
+    getKanbanWorkflowStatusForColumn(toColumnId),
+  )
+}
+
+export function getIllegalDropReason(
+  fromStatus: AssetStatus,
+  toColumnId: KanbanWorkflowColumnId,
+): string | null {
+  if (canDropOnColumn(fromStatus, toColumnId)) return null
+  return `Can't move ${fromStatus} → ${getKanbanWorkflowStatusForColumn(toColumnId)}`
 }

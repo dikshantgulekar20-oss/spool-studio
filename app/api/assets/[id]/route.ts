@@ -70,6 +70,41 @@ export async function PATCH(request: Request, context: RouteContext) {
       return parsed.response
     }
     const body = parsed.data
+    // Kanban drags and quick-approvals go through PATCH, so gate it here:
+    // approval-state targets require assets:approve (approvers hold this but
+    // not assets:update, so status-only approvals keep working for them),
+    // while any non-status field edit — or any other status change —
+    // requires assets:update. Service-level checks mirror this.
+    const approvalTargets: readonly AssetStatus[] = [
+      "approved",
+      "published",
+      "revision_requested",
+      "scheduled",
+    ]
+    const targetsApproval =
+      body.status !== undefined && approvalTargets.includes(body.status)
+    const hasNonStatusEdits =
+      body.currentRevisionId !== undefined ||
+      body.clientId !== undefined ||
+      body.title !== undefined ||
+      body.type !== undefined ||
+      body.driveFileUrl !== undefined ||
+      body.thumbnailUrl !== undefined ||
+      body.assignedTo !== undefined ||
+      body.scheduledAt !== undefined ||
+      body.publishDate !== undefined ||
+      body.publishTime !== undefined ||
+      body.scheduledBy !== undefined ||
+      body.publishedAt !== undefined ||
+      body.approvedAt !== undefined ||
+      body.approvedBy !== undefined ||
+      body.recurrence !== undefined
+    if (targetsApproval) {
+      await requirePermission("assets:approve")
+    }
+    if (hasNonStatusEdits || (body.status !== undefined && !targetsApproval)) {
+      await requirePermission("assets:update")
+    }
     // If the request asks to activate a specific revision, handle that first.
     if (body.currentRevisionId) {
       await setAssetCurrentRevision(assetId, body.currentRevisionId)

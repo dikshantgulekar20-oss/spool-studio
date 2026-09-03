@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/assets/status-badge"
 import { Breadcrumb } from "@/components/layout/breadcrumb"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
+import { useInvalidateAssetViews } from "@/hooks/use-invalidate-asset-views"
 import { assetsApi, clientsApi } from "@/lib/api-client"
 import { getAssetIcon } from "@/lib/asset-display"
 import type { Asset } from "@/types/index"
@@ -16,6 +17,7 @@ const APPROVAL_STATUSES: string[] = ["draft", "ready_for_review", "revision_requ
 export default function ApprovalsPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const invalidateAssetViews = useInvalidateAssetViews()
 
   const { data: assets = [], isLoading: assetsLoading, error: assetsError } = useQuery({
     queryKey: ["approvals", APPROVAL_STATUSES],
@@ -51,7 +53,11 @@ export default function ApprovalsPage() {
     onSuccess: (_updated, { action }) => {
       queryClient.invalidateQueries({ queryKey: ["approvals"] })
       queryClient.invalidateQueries({ queryKey: ["assets"] })
+      invalidateAssetViews()
       toast({ title: action === "approve" ? "Asset approved" : "Revision requested" })
+    },
+    onSettled: () => {
+      invalidateAssetViews()
     },
     onError: (err: Error, { action }) => {
       toast({ title: action === "approve" ? "Approval failed" : "Rejection failed", description: err.message, variant: "destructive" })

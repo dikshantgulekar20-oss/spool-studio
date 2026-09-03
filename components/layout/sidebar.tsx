@@ -61,7 +61,7 @@ const navigationSections = [
         icon: BarChart3,
       },
       {
-        label: "Upload Queue",
+        label: "Scheduled uploads",
         href: "/dashboard/queue",
         icon: Upload,
       },

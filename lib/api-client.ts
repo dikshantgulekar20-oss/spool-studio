@@ -313,9 +313,139 @@ function emitUploadProgress(
   })
 }
 
+const VIDEO_POSTER_MAX_WIDTH = 640
+const VIDEO_POSTER_SEEK_SECONDS = 1
+const VIDEO_POSTER_CAPTURE_TIMEOUT_MS = 8000
+
+export function shouldCaptureVideoPoster(mimeType: string): boolean {
+  return mimeType.startsWith("video/")
+}
+
+export function buildVideoPosterFileName(fileName: string): string {
+  const dot = fileName.lastIndexOf(".")
+  const base = dot > 0 ? fileName.slice(0, dot) : fileName
+  return `${base || "video"}-poster.jpg`
+}
+
+function captureFrameFromObjectUrl(objectUrl: string): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video")
+    video.muted = true
+    video.playsInline = true
+    video.preload = "auto"
+    let settled = false
+    const finish = (blob: Blob | null) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      window.clearTimeout(timer)
+      try {
+        video.pause()
+      } catch {
+        // ignore cleanup errors
+      }
+      video.removeAttribute("src")
+      resolve(blob)
+    }
+    const timer = window.setTimeout(
+      () => finish(null),
+      VIDEO_POSTER_CAPTURE_TIMEOUT_MS,
+    )
+    video.onloadedmetadata = () => {
+      try {
+        const seekTo =
+          Number.isFinite(video.duration) && video.duration > 0
+            ? Math.min(VIDEO_POSTER_SEEK_SECONDS, video.duration / 4)
+            : VIDEO_POSTER_SEEK_SECONDS
+        video.currentTime = seekTo
+      } catch {
+        finish(null)
+      }
+    }
+    video.onseeked = () => {
+      try {
+        const width = video.videoWidth || 0
+        const height = video.videoHeight || 0
+        if (!width || !height) {
+          finish(null)
+          return
+        }
+        const scale = Math.min(1, VIDEO_POSTER_MAX_WIDTH / width)
+        const canvas = document.createElement("canvas")
+        canvas.width = Math.max(1, Math.round(width * scale))
+        canvas.height = Math.max(1, Math.round(height * scale))
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          finish(null)
+          return
+        }
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob((blob) => finish(blob), "image/jpeg", 0.8)
+      } catch {
+        finish(null)
+      }
+    }
+    video.onerror = () => finish(null)
+    video.src = objectUrl
+  })
+}
+
+export async function captureVideoPosterFrame(
+  source: Blob,
+): Promise<Blob | null> {
+  try {
+    if (typeof document === "undefined" || typeof URL === "undefined") {
+      return null
+    }
+    const objectUrl = URL.createObjectURL(source)
+    try {
+      return await captureFrameFromObjectUrl(objectUrl)
+    } finally {
+      URL.revokeObjectURL(objectUrl)
+    }
+  } catch {
+    return null
+  }
+}
+
+async function tryUploadVideoPoster(
+  assetId: string,
+  file: File,
+): Promise<string | null> {
+  try {
+    const poster = await captureVideoPosterFrame(file)
+    if (!poster || poster.size === 0) {
+      return null
+    }
+    const posterName = buildVideoPosterFileName(file.name)
+    const session = await fetchJson<{ uploadUrl: string; key: string }>(
+      `/api/uploads/r2-session`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          assetId,
+          fileName: posterName,
+          mimeType: "image/jpeg",
+          fileSize: poster.size,
+        }),
+      },
+    )
+    const posterFile = new File([poster], posterName, { type: "image/jpeg" })
+    await uploadFileToR2Session(session.uploadUrl, posterFile, assetId)
+    return session.key
+  } catch (error) {
+    console.warn("[upload][poster]", {
+      assetId,
+      message: error instanceof Error ? error.message : "Unknown poster error",
+    })
+    return null
+  }
+}
+
 async function uploadFileToR2Session(
   uploadUrl: string,
-  file: File,
+  file: File | Blob,
   _assetId: string,
   onProgress?: (update: UploadProgressUpdate) => void,
 ): Promise<void> {
@@ -695,6 +825,14 @@ export const assetsApi = {
 
     emitUploadProgress(options?.onProgress, "finalizing", 96)
 
+    // Best-effort video poster: capture a frame client-side, store it via a
+    // second presigned session, and hand its R2 key to finalization so the
+    // server can persist it as thumbnail_url. Never blocks the main upload.
+    let thumbnailR2Key: string | null = null
+    if (shouldCaptureVideoPoster(file.type || "")) {
+      thumbnailR2Key = await tryUploadVideoPoster(assetId, file)
+    }
+
     const payload = await fetchJson<{ asset: Asset; upload: unknown }>(
       `/api/assets/${assetId}/upload`,
       {
@@ -702,6 +840,7 @@ export const assetsApi = {
         body: JSON.stringify({
           r2Key,
           fileName: file.name,
+          ...(thumbnailR2Key ? { thumbnailR2Key } : {}),
         }),
       },
     )

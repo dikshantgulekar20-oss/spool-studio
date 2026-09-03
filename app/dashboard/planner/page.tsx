@@ -66,17 +66,19 @@ export default function PlannerPage() {
   const clientCyclesQuery = useQuery({
     queryKey: ["planner"],
     queryFn: async () => {
-      const clients = await clientsQuery.data ?? []
-      const results: ClientWithCycles[] = []
-      for (const client of clients) {
-        const cycles = await cyclesApi.list(client.id)
-        if (cycles.length > 0) {
-          results.push({ client, cycles })
-        }
-      }
-      return results
+      const clients = clientsQuery.data ?? []
+      const settled: ClientWithCycles[] = await Promise.all(
+        clients.map(async (client) => {
+          const cycles = await cyclesApi.list(client.id)
+          return { client, cycles }
+        }),
+      )
+      return settled.filter(
+        ({ cycles }): boolean => cycles.length > 0,
+      )
     },
     enabled: clientsQuery.isSuccess,
+    refetchOnWindowFocus: true,
   })
 
   const clientCycles = clientCyclesQuery.data ?? []

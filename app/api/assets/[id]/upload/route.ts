@@ -91,6 +91,8 @@ export async function POST(request: Request, context: RouteContext) {
         r2Key?: string
         key?: string
         fileName?: string
+        thumbnailR2Key?: string
+        thumbnailKey?: string
       }
 
       const fileKey = body.r2Key ?? body.key
@@ -103,6 +105,23 @@ export async function POST(request: Request, context: RouteContext) {
       }
 
       const r2Metadata = await getFileMetadata(fileKey)
+      // Optional client-captured video poster (uploaded via its own
+      // presigned session). Resolved server-side so the public URL never
+      // depends on client construction. Failure here never blocks the upload.
+      let thumbnailLink: string | null = null
+      const thumbnailKey = body.thumbnailR2Key ?? body.thumbnailKey ?? null
+      if (thumbnailKey) {
+        try {
+          const thumbnailMetadata = await getFileMetadata(thumbnailKey)
+          thumbnailLink = `${process.env.R2_PUBLIC_BASE_URL ?? ""}/${thumbnailMetadata.key}`
+        } catch (error) {
+          console.warn("[upload][thumbnail-resolve-failed]", {
+            assetId,
+            thumbnailKey,
+            message: error instanceof Error ? error.message : "Unknown error",
+          })
+        }
+      }
       const result = await finalizeAssetUpload(assetId, {
         fileName: body.fileName,
         uploadResult: {
@@ -111,7 +130,7 @@ export async function POST(request: Request, context: RouteContext) {
           mimeType: r2Metadata.contentType,
           fileSize: r2Metadata.size,
           uploadStatus: "uploaded",
-          thumbnailLink: null,
+          thumbnailLink,
           mediaWidth: null,
           mediaHeight: null,
           durationSeconds: null,

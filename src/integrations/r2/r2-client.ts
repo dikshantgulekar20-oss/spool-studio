@@ -1,9 +1,12 @@
 import { S3Client } from "@aws-sdk/client-s3"
+import { assertProductionR2Env } from "@/lib/env"
 
 let client: S3Client | null = null
 
 export function getR2Client(): S3Client {
   if (client) return client
+
+  assertProductionR2Env()
 
   // Dev defaults target a local MinIO/S3RVER instance; production must
   // configure these explicitly - no silent localhost fallback.
@@ -36,10 +39,12 @@ export function getR2Client(): S3Client {
 }
 
 export function getR2BucketName(): string {
+  assertProductionR2Env()
   return process.env.R2_BUCKET_NAME || "cms-uploads"
 }
 
 export function getR2PublicBaseUrl(): string {
+  assertProductionR2Env()
   if (process.env.R2_PUBLIC_URL) {
     return process.env.R2_PUBLIC_URL
   }

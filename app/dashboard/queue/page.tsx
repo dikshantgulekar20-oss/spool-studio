@@ -284,7 +284,7 @@ export default function QueuePage() {
         <Breadcrumb
           items={[
             { label: "Dashboard", href: "/dashboard" },
-            { label: "Upload Queue" },
+            { label: "Scheduled uploads" },
           ]}
         />
         <div className="text-center py-12">
@@ -307,15 +307,21 @@ export default function QueuePage() {
       <Breadcrumb
         items={[
           { label: "Dashboard", href: "/dashboard" },
-          { label: "Upload Queue" },
+          { label: "Scheduled uploads" },
         ]}
       />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="queue-title">Upload Queue</h1>
+          <h1 className="queue-title">Scheduled uploads</h1>
           <p className="queue-subtitle">
             Monitor file publishing status and active uploads
+          </p>
+          <p className="mt-2 max-w-2xl text-[13px] text-[var(--color-text-muted)]">
+            This page is for scheduling uploads ahead of time. Queue an
+            approved asset here to publish it on a future date — it is
+            separate from uploading asset files directly, which happens from
+            the asset itself.
           </p>
         </div>
         <p className="text-[12px] text-[var(--color-text-muted)] font-medium">
@@ -605,7 +611,9 @@ export default function QueuePage() {
             No scheduled uploads
           </p>
           <p className="text-[12px] text-[var(--color-text-faint)] mt-0.5">
-            Upload scheduling will appear here when assets are approved
+            Nothing is scheduled ahead of time yet. Approved assets queued for
+            future publishing will appear here — this list is only for planned
+            uploads, not for uploading asset files directly.
           </p>
         </div>
       )}
