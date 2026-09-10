@@ -1,6 +1,7 @@
 import { contentAssets } from "@/db/schema"
 import { deleteFile } from "@/integrations/r2/r2-service"
-import { canTransitionStatus } from "@/lib/asset-workflow"
+import { ApiError } from "@/lib/api-error"
+import { canTransitionStatus, getAllowedTransitions } from "@/lib/asset-workflow"
 import { getCurrentUser } from "@/lib/auth"
 import { emitEvent } from "@/lib/event-bus"
 import { listCommentsByAssetId } from "@/repositories/asset-comments-repository"
@@ -250,24 +251,91 @@ export async function createAsset(input: AssetInput): Promise<Asset> {
 
 
 
+// Status targets that represent an approval decision (quick-approvals and
+// Kanban drags included). Moving an asset into one of these requires
+// assets:approve; every other mutation requires assets:update.
+const approvalTargetStatuses: readonly AssetStatus[] = [
+  "approved",
+  "published",
+  "revision_requested",
+  "scheduled",
+]
+
+// Service-level RBAC mirror of the canonical map in src/lib/rbac.ts
+// (assets:approve = admin/approver, assets:update = admin/designer).
+// Kept as explicit role lists instead of importing hasPermission from
+// @/lib/rbac because that module pulls the session/db chain at load time,
+// which breaks unit-test module loading (no DATABASE_URL in vitest).
+// Keep these lists in sync with src/lib/rbac.ts if roles change.
+const assetApproveRoles: readonly string[] = ["admin", "approver"]
+const assetUpdateRoles: readonly string[] = ["admin", "designer"]
+
+function canApproveAssets(role: string): boolean {
+  return assetApproveRoles.includes(role)
+}
+
+function canUpdateAssets(role: string): boolean {
+  return assetUpdateRoles.includes(role)
+}
+
 export async function updateAsset(
   assetId: string,
   input: Partial<AssetInput>,
 ): Promise<Asset> {
   const user = await getCurrentUser()
-
-  if (user) {
-    await getOrCreateCurrentUserProfile()
+  if (!user) {
+    throw ApiError.unauthorized()
   }
+
+  await getOrCreateCurrentUserProfile()
 
   const existing = await getAssetById(assetId)
   if (!existing) {
     throw new Error("Asset not found")
   }
 
-  if (input.status !== undefined) {
-    if (!canTransitionStatus(existing.status, input.status)) {
-      throw new Error("Invalid status transition")
+  const nextStatus = input.status
+  const targetsApproval =
+    nextStatus !== undefined && approvalTargetStatuses.includes(nextStatus)
+  const hasFieldEdits =
+    input.clientId !== undefined ||
+    input.title !== undefined ||
+    input.type !== undefined ||
+    input.driveFileUrl !== undefined ||
+    input.thumbnailUrl !== undefined ||
+    input.assignedTo !== undefined ||
+    input.scheduledAt !== undefined ||
+    input.publishDate !== undefined ||
+    input.publishTime !== undefined ||
+    input.scheduledBy !== undefined ||
+    input.publishedAt !== undefined ||
+    input.approvedAt !== undefined ||
+    input.approvedBy !== undefined ||
+    input.recurrence !== undefined ||
+    input.cycleId !== undefined ||
+    input.assetNumber !== undefined
+
+  if (targetsApproval && !canApproveAssets(user.role)) {
+    throw ApiError.forbidden(
+      "Permission denied: changing asset status to an approval state requires assets:approve",
+    )
+  }
+  if ((hasFieldEdits || !targetsApproval) && !canUpdateAssets(user.role)) {
+    throw ApiError.forbidden(
+      "Permission denied: editing asset fields requires assets:update",
+    )
+  }
+
+  if (nextStatus !== undefined) {
+    if (!canTransitionStatus(existing.status, nextStatus)) {
+      const allowed = getAllowedTransitions(existing.status)
+      const allowedList =
+        allowed.length > 0
+          ? allowed.map((status) => `"${status}"`).join(", ")
+          : "none"
+      throw ApiError.unprocessable(
+        `Invalid status transition from "${existing.status}" to "${nextStatus}". Allowed transitions from "${existing.status}": ${allowedList}.`,
+      )
     }
 
     const scheduledAt = input.scheduledAt ?? existing.scheduled_at
@@ -292,7 +360,7 @@ export async function updateAsset(
     updates.publish_date = scheduledFields.publishDate
     updates.publish_time = scheduledFields.publishTime
     updates.scheduled_by =
-      input.scheduledBy ?? user?.id ?? existing.scheduled_by ?? null
+      input.scheduledBy ?? user.id ?? existing.scheduled_by ?? null
   }
   if (input.publishDate !== undefined) updates.publish_date = input.publishDate
   if (input.publishTime !== undefined) updates.publish_time = input.publishTime
@@ -307,7 +375,7 @@ export async function updateAsset(
   if (input.status === "approved") {
     updates.approved_at = toDate(input.approvedAt) ?? new Date()
     updates.approved_by =
-      input.approvedBy ?? user?.id ?? existing.approved_by ?? null
+      input.approvedBy ?? user.id ?? existing.approved_by ?? null
   }
 
   if (input.status === "published") {
@@ -354,7 +422,7 @@ export async function updateAsset(
 
     emitEvent({
       type: "asset:status-changed",
-      userId: user?.id,
+      userId: user.id,
       payload: {
         assetId,
         previousStatus: existing.status,
@@ -427,6 +495,16 @@ export async function approveAsset(
   assetId: string,
   userId: string,
 ): Promise<Asset> {
+  // Defense in depth: routes already require assets:approve, but the service
+  // re-checks the caller's role so direct invocations cannot bypass RBAC.
+  // Skipped when there is no session caller (e.g. unit tests invoking the
+  // service directly); every real request path runs with a session.
+  const caller = await getCurrentUser()
+  if (caller && !canApproveAssets(caller.role)) {
+    throw ApiError.forbidden(
+      "Permission denied: approving assets requires assets:approve",
+    )
+  }
   await getOrCreateCurrentUserProfile()
   const existing = await getAssetById(assetId)
   if (!existing) {
@@ -490,6 +568,14 @@ export async function rejectAsset(
   assetId: string,
   userId: string,
 ): Promise<Asset> {
+  // Defense in depth: same assets:approve gate as approveAsset (the reject
+  // route requires assets:approve before calling here).
+  const caller = await getCurrentUser()
+  if (caller && !canApproveAssets(caller.role)) {
+    throw ApiError.forbidden(
+      "Permission denied: requesting revisions requires assets:approve",
+    )
+  }
   await getOrCreateCurrentUserProfile()
   const existing = await getAssetById(assetId)
   if (!existing) {

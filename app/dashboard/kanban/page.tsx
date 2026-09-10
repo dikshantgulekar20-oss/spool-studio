@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
+import { useInvalidateAssetViews } from "@/hooks/use-invalidate-asset-views"
 import { assetsApi, authApi, kanbanApi } from "@/lib/api-client"
 import { canTransitionStatus } from "@/lib/asset-workflow"
 import { cn } from "@/lib/utils"
@@ -49,6 +50,7 @@ export default function KanbanPage() {
   const [selectedClient, setSelectedClient] = useState<string>("all")
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const invalidateAssetViews = useInvalidateAssetViews()
 
   const {
     data: boardData,
@@ -129,6 +131,44 @@ export default function KanbanPage() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["board"] })
       queryClient.invalidateQueries({ queryKey: ["planner"] })
+      invalidateAssetViews()
+    },
+  })
+
+  const approveMutation = useMutation({
+    mutationFn: async (assetId: string): Promise<void> => {
+      const response = await fetch("/api/assets/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId }),
+      })
+      if (!response.ok) {
+        let message = "Failed to approve asset"
+        try {
+          // SAFETY: error responses are { error?: string } envelopes produced by our API routes.
+          const body = (await response.json()) as { error?: string }
+          if (body.error) message = body.error
+        } catch {
+          // keep the default message when the error body is unreadable
+        }
+        // SAFETY: attaching the HTTP status lets callers branch on auth failures.
+        const err = new Error(message) as Error & { status?: number }
+        err.status = response.status
+        throw err
+      }
+    },
+    onError: (err) => {
+      toast({
+        title: "Approval failed",
+        description:
+          err instanceof Error ? err.message : "Failed to approve asset",
+        variant: "destructive",
+      })
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["board"] })
+      queryClient.invalidateQueries({ queryKey: ["planner"] })
+      invalidateAssetViews()
     },
   })
 
@@ -157,6 +197,18 @@ export default function KanbanPage() {
     }
 
     statusMutation.mutate({ assetId, newStatus })
+  }
+
+  const handleQuickApprove = (assetId: string) => {
+    if (!canApprove) {
+      toast({
+        title: "Permission denied",
+        description: "Only approvers and admins can approve assets.",
+        variant: "destructive",
+      })
+      return
+    }
+    approveMutation.mutate(assetId)
   }
 
   if (isLoading) {
@@ -308,6 +360,7 @@ export default function KanbanPage() {
         <KanbanBoard
           assets={filteredAssets}
           onStatusChange={handleStatusChange}
+          onQuickApprove={handleQuickApprove}
           canApprove={canApprove}
         />
       </div>

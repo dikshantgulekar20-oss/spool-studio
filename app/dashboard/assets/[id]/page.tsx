@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
+import { useInvalidateAssetViews } from "@/hooks/use-invalidate-asset-views"
 import {
   assetsApi,
   authApi,
@@ -56,6 +57,7 @@ export default function AssetDetailPage() {
   const router = useRouter()
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const invalidateAssetViews = useInvalidateAssetViews()
 
   const [showDelete, setShowDelete] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -66,7 +68,7 @@ export default function AssetDetailPage() {
     "approve" | "reject" | null
   >(null)
   const [workflowAction, setWorkflowAction] = useState<
-    "process" | "move_to_draft" | null
+    "process" | "move_to_draft" | "send_for_review" | null
   >(null)
   const [revisionRefreshKey, setRevisionRefreshKey] = useState(0)
   const revisionInputRef = useRef<HTMLInputElement | null>(null)
@@ -127,7 +129,7 @@ export default function AssetDetailPage() {
   const canApproveDraft = asset?.status === "draft"
   const canRequestRevision = asset?.status === "draft"
   const canApproveRevision = asset?.status === "revision_requested"
-  const canProcessUpload = asset?.status === "uploaded"
+  const canSendForReview = asset?.status === "uploaded"
   const canMoveToDraft = asset?.status === "uploaded"
 
   const invalidateAsset = () => {
@@ -171,7 +173,8 @@ export default function AssetDetailPage() {
       // also update local asset state from result if returned
       if (result) {
         queryClient.setQueryData(["asset", assetId], result)
-      invalidateAsset()
+        invalidateAsset()
+        invalidateAssetViews()
       }
       clearApiClientCache()
       router.refresh()
@@ -213,6 +216,7 @@ export default function AssetDetailPage() {
       invalidateAsset()
       queryClient.invalidateQueries({ queryKey: ["assets"] })
       queryClient.invalidateQueries({ queryKey: ["planner"] })
+      invalidateAssetViews()
       toast({
         title: action === "approve" ? "Asset approved" : "Revision requested",
       })
@@ -232,7 +236,7 @@ export default function AssetDetailPage() {
 
   const handleWorkflowStatus = async (
     nextStatus: Asset["status"],
-    action: "process" | "move_to_draft",
+    action: "process" | "move_to_draft" | "send_for_review",
   ) => {
     if (!asset) {
       return
@@ -246,6 +250,7 @@ export default function AssetDetailPage() {
       invalidateAsset()
       queryClient.invalidateQueries({ queryKey: ["assets"] })
       queryClient.invalidateQueries({ queryKey: ["planner"] })
+      invalidateAssetViews()
       clearApiClientCache()
       router.refresh()
     } catch (err) {
@@ -361,6 +366,7 @@ export default function AssetDetailPage() {
                       queryClient.setQueryData(["asset", assetId], updated)
                       invalidateAsset()
                       queryClient.invalidateQueries({ queryKey: ["assets"] })
+                      invalidateAssetViews()
                       queryClient.invalidateQueries({
                         queryKey: ["clients", updated.clientId],
                       })
@@ -395,6 +401,7 @@ export default function AssetDetailPage() {
                         queryClient.setQueryData(["asset", assetId], updated)
                         invalidateAsset()
                         queryClient.invalidateQueries({ queryKey: ["assets"] })
+                        invalidateAssetViews()
                         queryClient.invalidateQueries({
                           queryKey: ["clients", updated.clientId],
                         })
@@ -672,16 +679,20 @@ export default function AssetDetailPage() {
               <StatusBadge status={asset.status} />
             </div>
             <div className="mt-4 space-y-2">
-              {canProcessUpload && (
+              {canSendForReview && (
                 <Button
                   className="h-9 w-full justify-between border border-[rgba(255,255,255,0.08)] bg-[#0f0f0f] px-3 text-[13px] text-white hover:bg-[rgba(255,255,255,0.06)]"
                   variant="default"
                   disabled={isSaving}
-                  aria-busy={workflowAction === "process"}
-                  onClick={() => handleWorkflowStatus("processing", "process")}
+                  aria-busy={workflowAction === "send_for_review"}
+                  onClick={() =>
+                    handleWorkflowStatus("ready_for_review", "send_for_review")
+                  }
                 >
                   <span>
-                    {workflowAction === "process" ? "Processing…" : "Process"}
+                    {workflowAction === "send_for_review"
+                      ? "Sending…"
+                      : "Send for review"}
                   </span>
                   <span className="text-[#71717a]">→</span>
                 </Button>

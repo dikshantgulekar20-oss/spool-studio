@@ -234,7 +234,7 @@ export function getUploadEligibilityReason(status: AssetStatus): string {
 const statusTransitions = {
   draft: ["uploading", "in_design", "ready_for_review", "revision_requested"],
   uploading: ["uploaded", "failed"],
-  uploaded: ["processing", "archived", "draft"],
+  uploaded: ["processing", "archived", "draft", "ready_for_review"],
   processing: ["ready_for_review", "failed"],
   approved: ["scheduled", "published", "revision_requested"],
   published: ["archived"],

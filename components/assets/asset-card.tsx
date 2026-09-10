@@ -265,6 +265,11 @@ function AssetCardImpl({ asset, onThumbnailClick, usersById }: AssetCardProps) {
                 {durationLabel}
               </span>
             )}
+            {previewType === "video" && !asset.thumbnailUrl && (
+              <span className="rounded-full border border-amber-400/30 bg-[rgba(0,0,0,0.6)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-amber-200">
+                No preview
+              </span>
+            )}
           </div>
         </div>
 

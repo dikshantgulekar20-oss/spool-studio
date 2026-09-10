@@ -366,8 +366,13 @@ export async function createClient(input: ClientInput): Promise<Client> {
 
   await getOrCreateCurrentUserProfile()
 
-  const calculatedWeeklyGoal =
-    (input.weeklyPosterGoal ?? 0) + (input.weeklyReelGoal ?? 0)
+  // Derive sensible weekly goals for new clients when none were provided:
+  // absent or zero falls back to Math.round(monthly / 4); explicit values win.
+  const weeklyPosterGoal =
+    input.weeklyPosterGoal || Math.round((input.monthlyPostsTarget ?? 0) / 4)
+  const weeklyReelGoal =
+    input.weeklyReelGoal || Math.round((input.monthlyReelsTarget ?? 0) / 4)
+  const calculatedWeeklyGoal = weeklyPosterGoal + weeklyReelGoal
   const monthlyGoal =
     input.monthlyGoal ??
     (input.monthlyReelsTarget ?? 0) + (input.monthlyPostsTarget ?? 0)
@@ -381,8 +386,8 @@ export async function createClient(input: ClientInput): Promise<Client> {
     monthly_posts_target: input.monthlyPostsTarget ?? 0,
     monthly_goal: monthlyGoal,
     weekly_goal: calculatedWeeklyGoal || input.weeklyGoal || 0,
-    weekly_poster_goal: input.weeklyPosterGoal ?? 0,
-    weekly_reel_goal: input.weeklyReelGoal ?? 0,
+    weekly_poster_goal: weeklyPosterGoal,
+    weekly_reel_goal: weeklyReelGoal,
     created_by: user.id,
     contract_start_date: input.contractStartDate ?? null,
     contract_end_date: input.contractEndDate ?? null,

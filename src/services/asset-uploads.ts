@@ -174,6 +174,18 @@ export async function finalizeAssetUpload(
     duration_seconds: input.uploadResult.durationSeconds ?? null,
   }
 
+  if (
+    input.uploadResult.mimeType.startsWith("video/") &&
+    !input.uploadResult.thumbnailLink
+  ) {
+    console.info("[upload][thumbnail-missing]", {
+      assetId,
+      fileName: input.fileName,
+      mimeType: input.uploadResult.mimeType,
+      reason: "no-poster-captured",
+    })
+  }
+
   if (!isRevisionUpload) {
     logAssetStatusTransition(assetId, "uploading", "uploaded", "upload-success")
     updates.status = "uploaded"
