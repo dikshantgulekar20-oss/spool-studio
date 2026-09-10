@@ -60,7 +60,7 @@ export function Hero() {
         >
           <Link
             href="/login"
-            className="rounded-lg bg-[#ededed] px-5 py-2.5 text-[14px] font-medium !text-[#0a0a0a] transition-all duration-150 hover:bg-white"
+            className="rounded-lg bg-[#ededed] px-5 py-2.5 text-[14px] font-medium !text-[#0a0a0a] transition-colors duration-150 hover:bg-white"
           >
             Sign in
           </Link>

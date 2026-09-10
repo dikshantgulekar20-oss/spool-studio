@@ -30,7 +30,7 @@ export function Navbar() {
           mx-auto flex w-full max-w-7xl items-center justify-between gap-4
           rounded-2xl border border-white/30
           bg-[#111111]/90 px-4 py-2.5
-          shadow-[0_0_0_1px_rgba(255,255,255,0.18),0_8px_25px_rgba(255,255,255,0.28)]
+          shadow-[0_0_0_1px_rgba(255,255,255,0.18)]
           backdrop-blur-xl
           sm:px-6 sm:py-3
         "
@@ -39,7 +39,7 @@ export function Navbar() {
         {/* Brand */}
         <Link
           href="/"
-          className="shrink-0 font-sans text-[15px] font-bold uppercase tracking-wide !text-[#35A774] no-underline transition-transform duration-200 hover:scale-50 hover:no-underline"
+          className="shrink-0 font-sans text-[15px] font-bold uppercase tracking-wide !text-[#35A774] no-underline transition-opacity duration-200 hover:opacity-80 hover:no-underline"
         >
           SPOOL
         </Link>
@@ -50,7 +50,7 @@ export function Navbar() {
             <li key={link.label}>
               <Link
                 href={link.href}
-                className="inline-block whitespace-nowrap text-[13px] font-medium !text-[#a1a1aa] no-underline transition-transform duration-200 hover:scale-110 hover:!text-white hover:no-underline"
+                className="inline-block whitespace-nowrap text-[13px] font-medium !text-[#a1a1aa] no-underline transition-colors duration-200 hover:!text-white hover:no-underline"
               >
                 {link.label}
               </Link>
@@ -64,7 +64,7 @@ export function Navbar() {
             href="https://github.com/IntegerAlex/CMS"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg bg-[#eeeeee] px-3 py-1.5 text-[13px] font-medium !text-black no-underline transition-transform duration-200 hover:scale-50 hover:bg-white hover:no-underline"
+            className="inline-flex items-center gap-2 rounded-lg bg-[#eeeeee] px-3 py-1.5 text-[13px] font-medium !text-black no-underline transition-colors duration-200 hover:bg-white hover:no-underline"
           >
             <AppleIcon className="h-3.5 w-3.5" />
             Download

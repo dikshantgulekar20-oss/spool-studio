@@ -9,7 +9,7 @@ import {
   UserCheck,
 } from "lucide-react"
 
-const FOOTER_BG = "#35A774"
+const FOOTER_BG = "#0a2e1f"
 const FOOTER_TEXT = "#ffffff"
 
 const columns: {
@@ -78,10 +78,10 @@ function ExternalLink({ label, href }: { label: string; href: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group/link inline-flex items-center gap-1 text-[13px] !text-white transition-colors hover:!text-[#0a2e1f]"
+      className="group/link inline-flex items-center gap-1 text-[13px] !text-white transition-colors hover:!text-[#8ACDAE]"
     >
       {label}
-      <ArrowRight className="h-3 w-3 -translate-x-1 opacity-0 transition-all duration-150 group-hover/link:translate-x-0 group-hover/link:opacity-100" />
+      <ArrowRight className="h-3 w-3 -translate-x-1 opacity-0 transition-[opacity,transform] duration-150 group-hover/link:translate-x-0 group-hover/link:opacity-100" />
     </a>
   )
 }
@@ -125,7 +125,7 @@ export function Footer() {
             <div>
               <Link
                 href="/"
-                className="font-mono text-[14px] font-semibold uppercase tracking-wider !text-white transition-colors hover:!text-[#0a2e1f]"
+                className="text-[14px] font-semibold uppercase tracking-wider !text-white transition-colors hover:!text-[#8ACDAE]"
               >
                 Spool<span className="!text-white">.</span>
               </Link>
@@ -137,7 +137,7 @@ export function Footer() {
                 href="https://github.com/IntegerAlex/CMS"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-6 inline-flex items-center gap-2 rounded-lg border border-white/40 px-3.5 py-2 text-[13px] !text-white transition-colors hover:border-[#0a2e1f] hover:bg-white/10 hover:!text-[#0a2e1f]"
+                className="mt-6 inline-flex items-center gap-2 rounded-lg border border-white/40 px-3.5 py-2 text-[13px] !text-white transition-colors hover:border-[#8ACDAE] hover:bg-white/10 hover:!text-[#8ACDAE]"
               >
                 <Github className="h-4 w-4" />
                 Star on GitHub
@@ -158,7 +158,7 @@ export function Footer() {
                       ) : (
                         <Link
                           href={link.href}
-                          className="text-[13px] !text-white transition-colors hover:!text-[#0a2e1f]"
+                          className="text-[13px] !text-white transition-colors hover:!text-[#8ACDAE]"
                         >
                           {link.label}
                         </Link>
@@ -182,7 +182,7 @@ export function Footer() {
               </span>
             </div>
             <div className="flex items-center gap-5">
-              <span className="inline-flex items-center gap-1.5 font-mono !text-white">
+              <span className="inline-flex items-center gap-1.5 !text-white">
                 <Sparkles className="h-3.5 w-3.5 !text-white" />
                 v1.0
               </span>
@@ -190,7 +190,7 @@ export function Footer() {
                 href="https://github.com/IntegerAlex/CMS"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 !text-white transition-colors hover:!text-[#0a2e1f]"
+                className="inline-flex items-center gap-1.5 !text-white transition-colors hover:!text-[#8ACDAE]"
               >
                 <Github className="h-3.5 w-3.5" />
                 GitHub

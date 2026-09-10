@@ -23,7 +23,7 @@ export function ContactForm({ className }: ContactFormProps) {
   return (
     <div
       className={cn(
-        "w-full rounded-2xl border border-[#5FBD91]/50 bg-[#0a0a0a] p-5 shadow-[0_0_0_1px_rgba(53,167,116,0.12)] sm:p-7 lg:p-8",
+        "w-full rounded-2xl border border-[#5FBD91]/50 bg-[#0a0a0a] p-5 sm:p-7 lg:p-8",
         className
       )}
     >

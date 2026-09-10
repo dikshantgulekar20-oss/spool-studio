@@ -5,7 +5,6 @@ import { Hero } from "@/components/landing/hero"
 import { Features } from "@/components/landing/features"
 // import { Footer } from "@/components/landing/footer"
 import { Navbar } from "@/components/landing/navbar"
-import { CompanyMarquee } from "@/components/landing/company-marquee"
 import { Testimonials } from "@/components/landing/testimonials"
 import { ContactLayout } from "@/components/landing/contact-layout"
 import { PageFrame } from "@/components/landing/page-frame"
@@ -22,9 +21,8 @@ export default async function LandingPage() {
         <Hero />
       </div>
 
-      {/* One continuous frame for marquee + features */}
+      {/* Framed product section */}
       <PageFrame className="items-stretch">
-        <CompanyMarquee />
         <Features />
       </PageFrame>
 
