@@ -92,7 +92,7 @@ function BottomFooter() {
       className="w-full overflow-hidden"
       style={{ backgroundColor: FOOTER_BG }}
     >
-      <div className="flex h-[20vh] w-full items-center justify-center overflow-hidden px-4">
+      <div className="flex h-[20vh] w-full items-center justify-center overflow-hidden px-6 sm:px-10 lg:px-16">
         <h2
           className="
             whitespace-nowrap
@@ -119,7 +119,7 @@ export function Footer() {
         className="relative overflow-hidden border-t border-white/20 !text-white"
         style={{ backgroundColor: FOOTER_BG, color: FOOTER_TEXT }}
       >
-        <div className="relative mx-auto max-w-6xl px-6 pb-10 pt-20">
+        <div className="relative w-full px-6 pb-10 pt-20 sm:px-10 lg:px-16 xl:px-24">
           {/* Brand + columns */}
           <div className="grid gap-12 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
             <div>
@@ -137,7 +137,7 @@ export function Footer() {
                 href="https://github.com/IntegerAlex/CMS"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-6 inline-flex items-center gap-2 rounded-lg border border-white/40 px-3.5 py-2 text-[13px] !text-white transition-colors hover:border-[#8ACDAE] hover:bg-white/10 hover:!text-[#8ACDAE]"
+                className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/40 px-4 py-2 text-[13px] !text-white transition-colors hover:border-[#8ACDAE] hover:bg-white/10 hover:!text-[#8ACDAE]"
               >
                 <Github className="h-4 w-4" />
                 Star on GitHub

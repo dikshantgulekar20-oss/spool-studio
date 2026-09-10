@@ -122,7 +122,7 @@ export function ContactForm({ className }: ContactFormProps) {
 
           <button
             type="submit"
-            className="mt-1 inline-flex w-full items-center justify-center rounded-lg bg-[#35A774] px-5 py-2.5 text-[14px] font-medium !text-black transition-colors hover:bg-[#5FBD91] sm:w-auto sm:self-end"
+            className="mt-1 inline-flex w-full items-center justify-center rounded-full bg-[#35A774] px-6 py-2.5 text-[14px] font-medium !text-black transition-colors hover:bg-[#5FBD91] sm:w-auto sm:self-end"
           >
             Submit
           </button>

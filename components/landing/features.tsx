@@ -1,430 +1,488 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import type { JSX } from "react"
+import { motion } from "framer-motion"
 import Link from "next/link"
-import {
-  motion,
-} from "framer-motion"
-import {
-  CalendarDays,
-  CheckCircle2,
-  Kanban,
-  Sparkles,
-  ArrowRight,
-  type LucideIcon,
-} from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { ArrowRight, CalendarDays, CheckCircle2, Kanban, Sparkles } from "lucide-react"
+import { useState } from "react"
+import { StatusBadge } from "@/components/assets/status-badge"
+import { KanbanBoard } from "@/components/kanban/board"
+import { MonthView } from "@/app/dashboard/calendar/page"
+import type { CalendarClientOption } from "@/components/calendar/calendar-filters"
+import { AskSpoolInput } from "@/components/chat/ask-spool/AskSpoolInput"
+import { AskSpoolMessage } from "@/components/chat/ask-spool/AskSpoolMessage"
+import { formatDateKey } from "@/lib/calendar-utils"
+import type { Asset, AssetStatus, CalendarEvent } from "@/types/index"
 
-const THEME = "#5FBD91"
-/** Fixed navbar height (padding + bar) */
-const NAV_OFFSET_PX = 80
-/** Extra air between navbar and sticky title */
-const STICKY_GAP_PX = 12
-const STICKY_TOP_PX = NAV_OFFSET_PX + STICKY_GAP_PX
-/** Approx sticky block: title row + tabs */
-const STICKY_BLOCK_PX = 128
-const SCROLL_MARGIN_PX = STICKY_TOP_PX + STICKY_BLOCK_PX
+// Mux motion token: plain ease, quick entrances. One movement vocabulary.
+const EASE = [0.25, 0.1, 0.25, 1] as const
 
-const NAV_OFFSET = `${STICKY_TOP_PX}px`
+interface Feature {
+  id: string
+  index: string
+  title: string
+  headline: string
+  description: string
+  points: string[]
+  href: string
+  icon: LucideIcon
+}
 
-const PRODUCT_TABS = [
+const FEATURES: Feature[] = [
   {
     id: "pipeline",
+    index: "01",
     title: "Production Pipeline",
-    headline: "Move work through a clear pipeline",
+    headline: "Every asset, one board",
     description:
-      "Track every piece of client content from draft to published in one board.",
+      "Track each piece of client content from draft to published. No status meetings, no lost files.",
     points: [
-      "Kanban stages: Draft → Review → Approval → Published",
-      "Assign teammates and keep asset IDs visible",
-      "Filter by client or team member",
+      "Draft → Review → Approval → Published",
+      "Assign teammates, filter by client",
       "Spot blockers before publish day",
     ],
-    cta: "Learn more about Pipeline",
     href: "/login",
     icon: Kanban,
-    image:
-      "https://images.unsplash.com/photo-1611224923853-80b023f02d71?auto=format&fit=crop&w=1400&q=80",
-    imageAlt: "Content production pipeline workspace",
   },
   {
     id: "calendar",
+    index: "02",
     title: "Calendar & Planning",
-    headline: "See the whole month at a glance",
+    headline: "The month, at a glance",
     description:
-      "Plan the full content month — cycles, schedules, and publish dates in one view.",
+      "Content cycles, schedules, and publish dates in one view. Know what's shipping this week.",
     points: [
       "Month, week, and day views",
-      "Overlay contracts, assets, and queue items",
-      "Recurring events and content cycles",
-      "See what's publishing this week",
+      "Contracts and queue overlaid",
+      "Recurring content cycles",
     ],
-    cta: "Learn more about Calendar",
     href: "/login",
     icon: CalendarDays,
-    image:
-      "https://images.unsplash.com/photo-1506784983877-45594efa4cbe?auto=format&fit=crop&w=1400&q=80",
-    imageAlt: "Content calendar planning",
   },
   {
     id: "approvals",
-    title: "Client Review & Approvals",
-    headline: "Clients review without an account",
+    index: "03",
+    title: "Client Review",
+    headline: "Approvals without accounts",
     description:
-      "Let clients review and approve assets without creating an account.",
+      "Clients review and approve through a token link. No seats, no logins, no friction.",
     points: [
-      "Token-based client portal — no account needed",
-      "Approve, reject, or request changes",
-      "Comments and full approval history",
-      "Share a simple portal link for feedback",
+      "Approve, reject, request changes",
+      "Comments on the exact file version",
+      "Full approval history per asset",
     ],
-    cta: "Learn more about Approvals",
     href: "/login",
     icon: CheckCircle2,
-    image:
-      "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1400&q=80",
-    imageAlt: "Team reviewing and approving creative work",
   },
   {
     id: "assets-ai",
-    title: "Assets, Uploads & AI",
-    headline: "Every asset — plus AI that acts",
+    index: "04",
+    title: "Assets & AI",
+    headline: "A library that answers",
     description:
-      "One library for reels and posters, reliable uploads, and AI that runs workspace actions.",
+      "One library for reels and posters — plus Ask Spool AI to move work and surface answers.",
     points: [
-      "Central library with previews, versions, and comments",
-      "Upload queue with progress and retry",
-      "Ask Spool AI to move assets, show approvals, and more",
-      "Command palette search across clients and assets",
+      "Previews, versions, comments",
+      "Upload queue with retry",
+      "Ask: approvals, moves, summaries",
     ],
-    cta: "Learn more about Assets & AI",
     href: "/login",
     icon: Sparkles,
-    image:
-      "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1400&q=80",
-    imageAlt: "Digital assets and AI creative tools",
   },
-] as const
+]
 
-type Tab = (typeof PRODUCT_TABS)[number]
+/* CSS-built product illustrations. Real status vocabulary, zero stock photos. */
 
-function FrameDivider({ vertical = false }: { vertical?: boolean }) {
-  if (vertical) {
-    return (
-      <div
-        aria-hidden
-        className="hidden w-[12px] shrink-0 border-x border-[#5FBD91] bg-[repeating-linear-gradient(135deg,#5FBD91_0,#5FBD91_1px,transparent_1px,transparent_5px)] lg:block"
-      />
-    )
-  }
-  return (
-    <div
-      aria-hidden
-      className="h-[12px] w-full border-y border-[#5FBD91] bg-[repeating-linear-gradient(135deg,#5FBD91_0,#5FBD91_1px,transparent_1px,transparent_5px)]"
-    />
-  )
-}
-
-function TabPanel({
-  tab,
-  index,
-  onInView,
-}: {
-  tab: Tab
-  index: number
-  onInView: (id: string) => void
-}) {
-  const ref = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.25) {
-          onInView(tab.id)
-        }
-      },
-      {
-        root: null,
-        threshold: [0.25, 0.4, 0.55],
-        rootMargin: `-${SCROLL_MARGIN_PX}px 0px -40% 0px`,
-      }
-    )
-
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [onInView, tab.id])
-
-  const Icon = tab.icon as LucideIcon
+function LiveBoard() {
+  const now = new Date()
+  const make = (
+    id: string,
+    title: string,
+    type: Asset["type"],
+    status: Asset["status"],
+  ): Asset => ({
+    id,
+    clientId: "demo-halcyon",
+    title,
+    type,
+    status,
+    uploadedAt: null,
+    createdBy: null,
+    createdAt: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000),
+    updatedAt: now,
+    scheduledAt: null,
+    publishedAt: null,
+    approvedAt: null,
+    assignedTo: [],
+    revisions: [],
+    comments: [],
+  })
+  const [assets, setAssets] = useState<Asset[]>([
+    make("demo-1", "Reel_04.mp4", "reel", "draft"),
+    make("demo-2", "Poster_02.png", "poster", "draft"),
+    make("demo-3", "Reel_03.mp4", "reel", "ready_for_review"),
+    make("demo-4", "Poster_01.png", "poster", "revision_requested"),
+    make("demo-5", "Reel_01.mp4", "reel", "approved"),
+  ])
 
   return (
-    <article
-      ref={ref}
-      id={`feature-${tab.id}`}
-      style={{ scrollMarginTop: `${SCROLL_MARGIN_PX}px` }}
-      className="relative z-0 overflow-hidden border-b border-[#5FBD91]/40 last:border-b-0"
-    >
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_12px_minmax(0,1.05fr)]">
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{
-            once: false,
-            amount: 0.35,
-            // Hide / re-trigger as content exits under the sticky header
-            margin: `-${SCROLL_MARGIN_PX}px 0px -10% 0px`,
-          }}
-          transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-0 flex flex-col justify-center px-5 py-12 sm:px-8 sm:py-16 lg:px-10 lg:py-24"
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.6, margin: `-${SCROLL_MARGIN_PX}px 0px 0px 0px` }}
-            transition={{ duration: 0.45, delay: 0.05, ease: [0.16, 1, 0.3, 1] }}
-            className="mb-4 inline-flex items-center gap-2 text-[12px] font-medium uppercase tracking-[0.12em] !text-[#5FBD91]"
-          >
-            <Icon className="h-3.5 w-3.5" />
-            {tab.title}
-          </motion.div>
-          <motion.h3
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.6, margin: `-${SCROLL_MARGIN_PX}px 0px 0px 0px` }}
-            transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-            className="max-w-md text-[1.65rem] font-semibold leading-[1.15] tracking-[-0.03em] !text-[#ededed] sm:text-[2rem] lg:text-[2.25rem]"
-          >
-            {tab.headline}
-          </motion.h3>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.5, margin: `-${SCROLL_MARGIN_PX}px 0px 0px 0px` }}
-            transition={{ duration: 0.5, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-4 max-w-md text-[14px] leading-relaxed !text-[#a1a1a1] sm:text-[15px]"
-          >
-            {tab.description}
-          </motion.p>
-          <motion.ul
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.4, margin: `-${SCROLL_MARGIN_PX}px 0px 0px 0px` }}
-            transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            className="mt-6 space-y-2.5"
-          >
-            {tab.points.map((point) => (
-              <li
-                key={point}
-                className="flex items-start gap-2.5 text-[13px] leading-snug !text-[#cfcfcf] sm:text-[14px]"
-              >
-                <span
-                  className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-                  style={{ backgroundColor: THEME }}
-                />
-                {point}
-              </li>
-            ))}
-          </motion.ul>
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: false, amount: 0.5, margin: `-${SCROLL_MARGIN_PX}px 0px 0px 0px` }}
-            transition={{ duration: 0.45, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <Link
-              href={tab.href}
-              className="mt-8 inline-flex items-center gap-1.5 text-[14px] font-medium !text-[#5FBD91] no-underline transition-colors hover:!text-[#7fd4ad] hover:no-underline"
-            >
-              {tab.cta}
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </motion.div>
-        </motion.div>
-
-        <FrameDivider vertical />
-
-        <FeatureImage
-          src={tab.image}
-          alt={tab.imageAlt}
-          priority={index === 0}
+    <div>
+      <p className="mb-3 font-mono text-[12px] tracking-[0.14em] !text-[#71717a]">
+        Live demo — drag a card · sample data
+      </p>
+      <div className="overflow-hidden rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0a0a0a] p-3 sm:p-4">
+        <KanbanBoard
+          assets={assets}
+          canApprove
+          onStatusChange={(assetId, newStatus) =>
+            setAssets((prev) =>
+              prev.map((a) => (a.id === assetId ? { ...a, status: newStatus } : a)),
+            )
+          }
+          onQuickApprove={(assetId) =>
+            setAssets((prev) =>
+              prev.map((a) =>
+                a.id === assetId
+                  ? { ...a, status: "approved", approvedAt: new Date() }
+                  : a,
+              ),
+            )
+          }
         />
-      </div>
-    </article>
-  )
-}
-
-function FeatureImage({
-  src,
-  alt,
-  priority,
-}: {
-  src: string
-  alt: string
-  priority?: boolean
-}) {
-  return (
-    <div className="relative z-0 min-h-[260px] overflow-hidden border-t border-[#5FBD91]/30 bg-[#0a0a0a] sm:min-h-[340px] lg:min-h-full lg:border-t-0">
-      <div className="absolute inset-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={src}
-          alt={alt}
-          loading={priority ? "eager" : "lazy"}
-          decoding="async"
-          className="h-full w-full object-cover"
-        />
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20" />
       </div>
     </div>
   )
 }
 
-export function Features() {
-  const [activeId, setActiveId] = useState<string>(PRODUCT_TABS[0].id)
-  const [isStuck, setIsStuck] = useState(false)
-  const sentinelRef = useRef<HTMLDivElement>(null)
-  const stickyRef = useRef<HTMLDivElement>(null)
-  const [stickyHeight, setStickyHeight] = useState(STICKY_BLOCK_PX)
+function demoEvent(
+  id: string,
+  title: string,
+  kind: CalendarEvent["kind"],
+  daysFromNow: number,
+): CalendarEvent {
+  const d = new Date()
+  d.setDate(d.getDate() + daysFromNow)
+  d.setHours(10, 0, 0, 0)
+  return {
+    id,
+    kind,
+    title,
+    clientId: "demo-halcyon",
+    clientName: "Halcyon Studio",
+    start: d.toISOString(),
+    href: null,
+    assetId: null,
+    uploadQueueId: null,
+    platform: null,
+    status: null,
+    note: null,
+    caption: null,
+    contractEndDate: null,
+  }
+}
 
-  const onPanelInView = useCallback((id: string) => {
-    setActiveId(id)
-  }, [])
+const DEMO_CLIENTS = new Map<string, CalendarClientOption>([
+  ["demo-halcyon", { id: "demo-halcyon", name: "Halcyon Studio", brandColor: "#35A774" }],
+])
 
-  const scrollToTab = (id: string) => {
-    const el = document.getElementById(`feature-${id}`)
-    if (!el) return
-    el.scrollIntoView({ behavior: "smooth", block: "start" })
-    setActiveId(id)
+function CalendarLive() {
+  const [events, setEvents] = useState<CalendarEvent[]>([
+    demoEvent("cal-1", "Reel_04 publish", "publish", 2),
+    demoEvent("cal-2", "Poster_02 approval", "approval", 5),
+    demoEvent("cal-3", "Reel_05 upload", "upload", 7),
+    demoEvent("cal-4", "Poster_03 publish", "publish", 11),
+  ])
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [selected, setSelected] = useState<CalendarEvent | null>(null)
+
+  const getEventsForDate = (d: Date) => {
+    const key = formatDateKey(d)
+    return events.filter((e) => formatDateKey(new Date(e.start)) === key)
   }
 
-  // Detect when title/tabs are stuck under the navbar
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
+  return (
+    <div>
+      <p className="mb-3 font-mono text-[12px] tracking-[0.14em] !text-[#71717a]">
+        Live demo — drag an event to reschedule · sample data
+      </p>
+      <div className="overflow-hidden rounded-lg border border-[rgba(255,255,255,0.08)] bg-[#0a0a0a] p-3">
+        <MonthView
+          currentDate={new Date()}
+          getEventsForDate={getEventsForDate}
+          events={events}
+          clientsById={DEMO_CLIENTS}
+          onSelectDate={() => setSelected(null)}
+          onSelectEvent={(e) => setSelected(e)}
+          onScheduleDate={() => undefined}
+          onDropDate={({ date }) => {
+            if (!dragId) return
+            setEvents((prev) =>
+              prev.map((e) => {
+                if (e.id !== dragId) return e
+                const start = new Date(e.start)
+                const next = new Date(date)
+                next.setHours(start.getHours(), start.getMinutes(), 0, 0)
+                return { ...e, start: next.toISOString() }
+              }),
+            )
+            setDragId(null)
+          }}
+          onDragStartEvent={(id) => setDragId(id)}
+        />
+      </div>
+      <p className="mt-2 min-h-[18px] font-mono text-[11px] !text-[#5FBD91]">
+        {selected ? `${selected.title} · ${selected.clientName ?? ""}` : ""}
+      </p>
+    </div>
+  )
+}
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsStuck(!entry.isIntersecting)
-      },
-      {
-        threshold: 0,
-        rootMargin: `-${STICKY_TOP_PX}px 0px 0px 0px`,
-      }
-    )
+function PortalVisual() {
+  const [approved, setApproved] = useState(false)
+  return (
+    <div className="rounded-lg border border-[rgba(255,255,255,0.08)] bg-black p-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="truncate font-mono text-[11px] !text-[#ededed]">Reel_04.mp4</p>
+        <StatusBadge status={approved ? "approved" : "revision_requested"} />
+      </div>
+      <p className="mt-2 text-[12px] leading-relaxed !text-[#a1a1aa]">
+        “Swap the cover frame at 0:03, then good to go.”
+      </p>
+      {approved ? (
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <p className="font-mono text-[11px] !text-[#5FBD91]">
+            Approved · logged · designer notified
+          </p>
+          <button
+            onClick={() => setApproved(false)}
+            className="shrink-0 font-mono text-[11px] !text-[#71717a] underline-offset-4 hover:!text-[#a1a1aa] hover:underline"
+          >
+            Replay
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={() => setApproved(true)}
+            className="rounded-full bg-[#35A774] px-3 py-1 text-[11px] font-medium !text-black transition-colors hover:bg-[#5FBD91]"
+          >
+            Approve
+          </button>
+          <span className="rounded-full border border-[rgba(255,255,255,0.15)] px-3 py-1 text-[11px] !text-[#a1a1aa]">
+            Request changes
+          </span>
+        </div>
+      )}
+      <p className="mt-2.5 font-mono text-[10px] !text-[#525252]">
+        halcyon-studio · token link · no account needed
+      </p>
+    </div>
+  )
+}
 
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [])
+interface ChatLine {
+  role: "user" | "assistant"
+  text: string
+  approvals?: AssetStatus[]
+  moved?: string
+}
 
-  // Keep column mask height in sync with the real sticky block
-  useEffect(() => {
-    const el = stickyRef.current
-    if (!el) return
+function ChatDemo() {
+  const [lines, setLines] = useState<ChatLine[]>([
+    { role: "user", text: "approvals for Halcyon?" },
+    {
+      role: "assistant",
+      text: "2 pending right now:",
+      approvals: ["ready_for_review", "revision_requested"],
+    },
+  ])
+  const [input, setInput] = useState("")
 
-    const update = () => setStickyHeight(el.getBoundingClientRect().height)
-    update()
-
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  // Mask stays inside the content column only — never covers PageFrame gutters
-  const maskHeight = STICKY_TOP_PX + stickyHeight
+  const send = () => {
+    const text = input.trim()
+    if (!text) return
+    setInput("")
+    const lower = text.toLowerCase()
+    if (lower.includes("move")) {
+      setLines((prev) => [
+        ...prev,
+        { role: "user", text },
+        { role: "assistant", text: "Done.", moved: "Reel_04 → review" },
+      ])
+    } else if (lower.includes("approv")) {
+      setLines((prev) => [
+        ...prev,
+        { role: "user", text },
+        {
+          role: "assistant",
+          text: "2 pending right now:",
+          approvals: ["ready_for_review", "revision_requested"],
+        },
+      ])
+    } else {
+      setLines((prev) => [
+        ...prev,
+        { role: "user", text },
+        { role: "assistant", text: "Try “approvals” or “move Reel_04 to review”." },
+      ])
+    }
+  }
 
   return (
-    <section id="product" className="relative z-20 w-full bg-black pt-0">
-      <div ref={sentinelRef} className="pointer-events-none h-px w-full" aria-hidden />
-
-      <div className="relative">
-        {/*
-          Column-scoped seal (NOT fixed / NOT full viewport).
-          Width follows the PageFrame center column so left/right green
-          frames stay fully visible. Negative margin keeps layout stable.
-        */}
-        <div
-          aria-hidden
-          className="pointer-events-none sticky z-[39] bg-black"
-          style={{
-            top: 0,
-            height: isStuck ? maskHeight : 0,
-            marginBottom: isStuck ? -maskHeight : 0,
-            backgroundColor: "#000000",
-          }}
-        />
-
-        <div
-          ref={stickyRef}
-          className="sticky z-40 isolate border-b border-[#5FBD91]/50 bg-black [transform:translateZ(0)]"
-          style={{ top: NAV_OFFSET, backgroundColor: "#000000" }}
-        >
-          {/* Extra flap in this column only — covers gap under the navbar */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-full bg-black"
-            style={{ height: isStuck ? STICKY_TOP_PX : 0, backgroundColor: "#000000" }}
-          />
-
-          <div className="relative z-10 bg-black" style={{ backgroundColor: "#000000" }}>
-            <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-8 sm:py-6 lg:px-10">
-              <h2 className="text-[1.5rem] font-semibold tracking-[-0.03em] !text-[#ededed] sm:text-[1.85rem] lg:text-[2.1rem]">
-                What Spool Does
-              </h2>
-              <Link
-                href="/login"
-                className="inline-flex w-fit shrink-0 items-center justify-center rounded-lg border border-[#5FBD91] px-4 py-2 text-[13px] font-medium !text-[#5FBD91] no-underline transition-colors hover:bg-[#5FBD91]/10 hover:!text-[#7fd4ad] hover:no-underline"
-              >
-                Get Trial
-              </Link>
-            </div>
-
-            <nav
-              aria-label="Product features"
-              className="border-t border-[#5FBD91]/40 bg-black"
-              style={{ backgroundColor: "#000000" }}
+    <div>
+      <p className="mb-3 font-mono text-[12px] tracking-[0.14em] !text-[#71717a]">
+        Live demo — type below · sample data
+      </p>
+      <div className="overflow-hidden rounded-lg border border-[rgba(255,255,255,0.08)] bg-black">
+        <div className="space-y-2.5 p-3">
+          {lines.map((line, i) => (
+            // SAFETY: demo lines are append-only; index keys are stable here.
+            <AskSpoolMessage
+              key={i}
+              role={line.role}
+              tone="light"
             >
-              <ul className="flex min-w-max divide-x divide-[#5FBD91]/40 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] sm:min-w-0 sm:grid sm:grid-cols-4 [&::-webkit-scrollbar]:hidden">
-                {PRODUCT_TABS.map((tab) => {
-                  const Icon = tab.icon as LucideIcon
-                  const active = activeId === tab.id
-                  return (
-                    <li key={tab.id} className="flex">
-                      <button
-                        type="button"
-                        onClick={() => scrollToTab(tab.id)}
-                        className={[
-                          "flex w-full items-center justify-center gap-2 px-4 py-3 text-[12px] font-medium transition-colors sm:py-3.5 sm:text-[13px]",
-                          active
-                            ? "bg-[#5FBD91]/15 !text-[#ededed]"
-                            : "!text-[#a1a1a1] hover:bg-white/5 hover:!text-[#ededed]",
-                        ].join(" ")}
-                      >
-                        <Icon
-                          className="h-3.5 w-3.5 shrink-0"
-                          style={{ color: active ? THEME : undefined }}
-                        />
-                        <span className="whitespace-nowrap">{tab.title}</span>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </nav>
-          </div>
-        </div>
-
-        {/* Panels stay below sticky; isolate keeps motion transforms from painting over it */}
-        <div className="relative z-0 isolate">
-          {PRODUCT_TABS.map((tab, index) => (
-            <TabPanel
-              key={tab.id}
-              tab={tab}
-              index={index}
-              onInView={onPanelInView}
-            />
+              <span style={{ color: "#000" }}>{line.text}</span>
+              {line.approvals && (
+                <span className="mt-2 flex flex-wrap gap-1.5">
+                  {line.approvals.map((s) => (
+                    <StatusBadge key={s} status={s} />
+                  ))}
+                </span>
+              )}
+              {line.moved && (
+                <span className="mt-1.5 block font-mono text-[11px] !text-[#0a2e1f]">
+                  ✓ {line.moved} · logged
+                </span>
+              )}
+            </AskSpoolMessage>
           ))}
         </div>
+        <div className="border-t border-[rgba(255,255,255,0.07)]">
+          <AskSpoolInput
+            value={input}
+            onChange={setInput}
+            onSubmit={send}
+            disabled={false}
+            streaming={false}
+            alwaysActive
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const VISUALS: Record<string, () => JSX.Element> = {
+  calendar: CalendarLive,
+  approvals: PortalVisual,
+  "assets-ai": ChatDemo,
+}
+
+function FeatureText({ feature }: { feature: Feature }) {
+  const Icon = feature.icon
+  return (
+    <>
+      <p className="font-mono text-[12px] tracking-[0.14em] !text-[#35A774]">
+        {feature.index} — {feature.title}
+      </p>
+      <h3 className="mt-3 font-mono text-[1.65rem] font-bold leading-[1.15] !text-[#ededed] sm:text-[2rem]">
+        {feature.headline}
+      </h3>
+      <p className="mt-4 max-w-md text-[14px] leading-relaxed !text-[#a1a1a1] sm:text-[15px]">
+        {feature.description}
+      </p>
+      <ul className="mt-6 space-y-2.5">
+        {feature.points.map((point) => (
+          <li
+            key={point}
+            className="flex items-start gap-2.5 text-[13px] leading-snug !text-[#cfcfcf] sm:text-[14px]"
+          >
+            <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 !text-[#35A774]" />
+            {point}
+          </li>
+        ))}
+      </ul>
+      <Link
+        href={feature.href}
+        className="mt-7 inline-flex items-center gap-1.5 text-[14px] font-medium !text-[#5FBD91] no-underline transition-colors hover:!text-[#7fd4ad] hover:no-underline"
+      >
+        Open the app
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </>
+  )
+}
+
+function FeatureRow({ feature, flip }: { feature: Feature; flip: boolean }) {
+  // Pipeline gets the real interactive board, full width below its copy.
+  if (feature.id === "pipeline") {
+    return (
+      <article className="border-t border-[rgba(255,255,255,0.08)] py-14 sm:py-20">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4 }}
+          transition={{ duration: 0.4, ease: EASE }}
+          className="max-w-2xl"
+        >
+          <FeatureText feature={feature} />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.15 }}
+          transition={{ duration: 0.4, ease: EASE, delay: 0.08 }}
+          className="mt-10"
+        >
+          <LiveBoard />
+        </motion.div>
+      </article>
+    )
+  }
+
+  const Visual = VISUALS[feature.id] ?? ChatDemo
+  return (
+    <article className="grid items-center gap-8 border-t border-[rgba(255,255,255,0.08)] py-14 sm:py-20 lg:grid-cols-2 lg:gap-14">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.4 }}
+        transition={{ duration: 0.4, ease: EASE }}
+        className={flip ? "lg:order-2" : ""}
+      >
+        <FeatureText feature={feature} />
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.4 }}
+        transition={{ duration: 0.4, ease: EASE, delay: 0.08 }}
+        aria-hidden="true"
+        className={flip ? "lg:order-1" : ""}
+      >
+        <Visual />
+      </motion.div>
+    </article>
+  )
+}
+
+export function Features() {
+  return (
+    <section id="product" className="w-full scroll-mt-24 bg-black">
+      <div className="w-full px-6 sm:px-10 lg:px-16 xl:px-24">
+        <div className="pb-4 pt-16 sm:pt-20">
+          <p className="font-mono text-[12px] tracking-[0.14em] !text-[#35A774]">
+            Product
+          </p>
+          <h2 className="mt-3 max-w-xl font-mono text-[1.75rem] font-bold leading-tight !text-[#ededed] sm:text-[2.25rem]">
+            Four tools. One workspace.
+          </h2>
+        </div>
+        {FEATURES.map((feature, i) => (
+          <FeatureRow key={feature.id} feature={feature} flip={i % 2 === 1} />
+        ))}
       </div>
     </section>
   )

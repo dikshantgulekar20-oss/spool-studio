@@ -1,35 +1,58 @@
 "use client"
 
 import { ContactForm } from "@/components/landing/contact-form"
-import { ContactLottie } from "@/components/landing/contact-lottie"
+
+const STEPS = [
+  {
+    n: "01",
+    title: "Self-host it",
+    body: "Clone the repo, run the migrations, done. AGPL-3.0, your servers, your data.",
+  },
+  {
+    n: "02",
+    title: "Or have us host it",
+    body: "We deploy on your cloud or ours — SSO, backups, and updates handled.",
+  },
+  {
+    n: "03",
+    title: "Bring the team",
+    body: "Onboarding, workflow setup, and integrations with the tools you already use.",
+  },
+]
 
 export function ContactLayout() {
   return (
     <section
       id="contact"
-      className="relative w-screen max-w-[100vw] scroll-mt-28 overflow-x-clip bg-black py-12 sm:py-16 lg:py-20"
+      className="w-full scroll-mt-24 border-t border-[rgba(255,255,255,0.08)] bg-black"
     >
-      <div className="mb-8 w-full px-[5vw] text-center sm:mb-10 lg:mb-12">
-        <p className="mb-3 text-[12px] font-medium uppercase tracking-[0.14em] !text-[#35A774]">
-          Contact
-        </p>
-        <h2 className="text-[1.6rem] font-semibold tracking-[-0.02em] !text-[#ededed] sm:text-[1.85rem]">
-          Let&apos;s talk about your next cycle
-        </h2>
-        <p className="mx-auto mt-3 max-w-xl text-[14px] leading-relaxed !text-[#a1a1a1] sm:text-[15px]">
-          Reach out for demos, partnerships, or anything Spool-related.
-        </p>
-      </div>
-
-      {/* Full-bleed split: 45vw + 45vw, remaining 10vw as gutters/gap */}
-      <div className="flex w-screen max-w-[100vw] flex-col items-stretch gap-8 px-[2.5vw] lg:flex-row lg:items-center lg:justify-between lg:gap-0">
-        {/* Left — 45vw / 80vh lottie */}
-        <div className="flex h-[50vh] w-full items-center justify-center lg:h-[80vh] lg:w-[45vw] lg:shrink-0">
-          <ContactLottie className="h-full w-full" />
+      <div className="grid w-full gap-12 px-6 py-16 sm:px-10 sm:py-20 lg:grid-cols-2 lg:gap-20 lg:px-16 xl:px-24">
+        <div>
+          <p className="font-mono text-[12px] tracking-[0.14em] !text-[#35A774]">
+            Contact
+          </p>
+          <h2 className="mt-3 font-mono text-[1.75rem] font-bold leading-tight !text-[#ededed] sm:text-[2.25rem]">
+            Run Spool your way.
+          </h2>
+          <div className="mt-10 space-y-8">
+            {STEPS.map((step) => (
+              <div key={step.n} className="flex gap-4">
+                <span className="font-mono text-[13px] !text-[#35A774]">
+                  {step.n}
+                </span>
+                <div>
+                  <p className="text-[15px] font-medium !text-[#ededed]">
+                    {step.title}
+                  </p>
+                  <p className="mt-1 max-w-sm text-[14px] leading-relaxed !text-[#a1a1a1]">
+                    {step.body}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-
-        {/* Right — 45vw form */}
-        <div className="flex w-full items-center lg:w-[45vw] lg:shrink-0">
+        <div className="flex items-start">
           <ContactForm className="w-full" />
         </div>
       </div>

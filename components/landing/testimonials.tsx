@@ -1,230 +1,106 @@
 "use client"
 
-import { useCallback, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
-import {
-  CalendarDays,
-  CheckCircle2,
-  Kanban,
-  LayoutGrid,
-  Sparkles,
-  Upload,
-  type LucideIcon,
-} from "lucide-react"
-import {
-  TestimonialsCardCarousel,
-  type Testimonial,
-} from "@/components/landing/testimonials-card-carousel"
+import { motion } from "framer-motion"
 
-const ICON_MAP: Record<string, LucideIcon> = {
-  kanban: Kanban,
-  calendar: CalendarDays,
-  approvals: CheckCircle2,
-  library: LayoutGrid,
-  upload: Upload,
-  ai: Sparkles,
+const EASE = [0.25, 0.1, 0.25, 1] as const
+
+interface Testimonial {
+  quote: string
+  name: string
+  role: string
+  company: string
 }
 
 const TESTIMONIALS: Testimonial[] = [
   {
-    id: "1",
-    fullname: "Mariana Castilho",
-    username: "@mrncst",
-    profile_img: "https://i.pravatar.cc/150?img=47",
-    profesion: "Creative Director",
-    company_name: "Halcyon Studio",
-    content:
-      "Spool lets our team ship client content faster. From draft to approval, everything lives in one place — and the client portal means zero login friction.",
-    fav_feature: "Client Portal",
-    fav_service: "Approvals",
-    fav_feature_icon: "approvals",
-    fav_service_icon: "library",
+    quote:
+      "From draft to approval, everything lives in one place — and the client portal means zero login friction.",
+    name: "Mariana Castilho",
+    role: "Creative Director",
+    company: "Halcyon Studio",
   },
   {
-    id: "2",
-    fullname: "Reece Atkinson",
-    username: "@reece_ops",
-    profile_img: "https://i.pravatar.cc/150?img=12",
-    profesion: "Producer",
-    company_name: "Northframe",
-    content:
-      "The production pipeline made our weekly reel cycle predictable. We finally see blockers before publish day instead of finding out in Slack.",
-    fav_feature: "Production Pipeline",
-    fav_service: "Calendar",
-    fav_feature_icon: "kanban",
-    fav_service_icon: "calendar",
+    quote:
+      "Our weekly reel cycle finally became predictable. We see blockers before publish day instead of finding out in Slack.",
+    name: "Reece Atkinson",
+    role: "Producer",
+    company: "Northframe",
   },
   {
-    id: "3",
-    fullname: "Oliur Rahman",
-    username: "@olidesign",
-    profile_img: "https://i.pravatar.cc/150?img=33",
-    profesion: "Designer",
-    company_name: "Pixel & Co",
-    content:
-      "Asset library + version history ended the 'final_final_v3' chaos. Clients comment on the right file, and we keep a clean audit trail.",
-    fav_feature: "Asset Library",
-    fav_service: "Uploads",
-    fav_feature_icon: "library",
-    fav_service_icon: "upload",
+    quote:
+      "Version history ended the final_final_v3 chaos. Clients comment on the right file, every time.",
+    name: "Oliur Rahman",
+    role: "Designer",
+    company: "Pixel & Co",
   },
   {
-    id: "4",
-    fullname: "Sara Nguyen",
-    username: "@saran",
-    profile_img: "https://i.pravatar.cc/150?img=5",
-    profesion: "Agency Lead",
-    company_name: "Novena Media",
-    content:
-      "Ask Spool AI is a real timesaver — moving assets to review or checking approvals for a client takes seconds instead of digging through boards.",
-    fav_feature: "Ask Spool AI",
-    fav_service: "Pipeline",
-    fav_feature_icon: "ai",
-    fav_service_icon: "kanban",
+    quote:
+      "Ask Spool AI moves assets to review and checks approvals in seconds. It replaced half my board-diving.",
+    name: "Sara Nguyen",
+    role: "Agency Lead",
+    company: "Novena Media",
   },
   {
-    id: "5",
-    fullname: "Jordan Blake",
-    username: "@jblake",
-    profile_img: "https://i.pravatar.cc/150?img=68",
-    profesion: "Content Strategist",
-    company_name: "Brightloop",
-    content:
-      "Calendar overlays for contracts and publish dates keep multi-client months sane. The whole team knows what’s shipping this week.",
-    fav_feature: "Calendar & Planning",
-    fav_service: "Client Portal",
-    fav_feature_icon: "calendar",
-    fav_service_icon: "approvals",
+    quote:
+      "Calendar overlays for contracts and publish dates keep multi-client months sane.",
+    name: "Jordan Blake",
+    role: "Content Strategist",
+    company: "Brightloop",
   },
 ]
 
-function FeatureBadge({
-  label,
-  iconKey,
-}: {
-  label: string
-  iconKey: string
-}) {
-  const Icon = ICON_MAP[iconKey] ?? Sparkles
-  return (
-    <span className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-1.5 text-[13px] font-medium !text-[#ededed]">
-      <Icon className="h-3.5 w-3.5 !text-[#35A774]" />
-      {label}
-    </span>
-  )
-}
-
-function FavRow({
-  title,
-  badgeLabel,
-  iconKey,
-  description,
-}: {
-  title: string
-  badgeLabel: string
-  iconKey: string
-  description: string
-}) {
-  return (
-    <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
-      {/* Title + badge on one line */}
-      <p className="whitespace-nowrap text-[12px] !text-[#888888] sm:text-[13px]">
-        {title}
-      </p>
-      <div className="justify-self-start">
-        <FeatureBadge label={badgeLabel} iconKey={iconKey} />
-      </div>
-      {/* Description indented under the badge column */}
-      <span aria-hidden />
-      <p className="max-w-md text-[13px] leading-relaxed !text-[#a1a1a1]">
-        {description}
-      </p>
-    </div>
-  )
+function initials(name: string) {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase()
 }
 
 export function Testimonials() {
-  const [activeIndex, setActiveIndex] = useState(0)
-  const active = TESTIMONIALS[activeIndex]
-
-  const handleChange = useCallback((index: number) => {
-    setActiveIndex(index)
-  }, [])
-
-  const firstSentence = active.content.split(".")[0] + "."
-  const rest = active.content.includes(".")
-    ? active.content.slice(active.content.indexOf(".") + 1).trim()
-    : ""
-
   return (
-    <section
-      id="about"
-      className="relative w-full overflow-hidden bg-black px-4 py-20 sm:px-6 sm:py-24 md:py-28"
-    >
-      <div className="mx-auto flex w-full max-w-5xl flex-col items-center">
-        <h2 className="max-w-2xl text-center text-[1.75rem] font-semibold tracking-[-0.03em] !text-[#ededed] sm:text-[2.25rem] md:text-[2.5rem]">
-          Built for professionals like you.
-        </h2>
-        <p className="mt-3 text-center text-[14px] !text-[#a1a1a1] sm:text-[15px]">
-          Used by seriously productive people.
+    <section id="about" className="w-full scroll-mt-24 border-t border-[rgba(255,255,255,0.08)] bg-black">
+      <div className="w-full px-6 py-16 sm:px-10 sm:py-20 lg:px-16 xl:px-24">
+        <p className="font-mono text-[12px] tracking-[0.14em] !text-[#35A774]">
+          Field notes
         </p>
-      </div>
+        <h2 className="mt-3 max-w-xl font-mono text-[1.75rem] font-bold leading-tight !text-[#ededed] sm:text-[2.25rem]">
+          Teams that ship every week.
+        </h2>
 
-      <div className="mt-12 sm:mt-14">
-        <TestimonialsCardCarousel
-          items={TESTIMONIALS}
-          activeIndex={activeIndex}
-          onChange={handleChange}
-        />
-      </div>
-
-      {/* Detail panel */}
-      <div className="mx-auto mt-10 w-full max-w-5xl sm:mt-14">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={active.id}
-            initial={{ opacity: 0, x: 40 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -30 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-            className="grid gap-8 md:grid-cols-[1fr_1px_1.15fr] md:gap-0"
-          >
-            {/* Left: fav feature / service — label + badge same line */}
-            <div className="flex flex-col justify-center gap-8 px-1 md:pr-10">
-              <FavRow
-                title="Favorite Feature:"
-                badgeLabel={active.fav_feature}
-                iconKey={active.fav_feature_icon}
-                description={`${active.fullname.split(" ")[0]} relies on ${active.fav_feature} to keep ${active.company_name}'s workflow moving.`}
-              />
-              <FavRow
-                title="Favorite Service:"
-                badgeLabel={active.fav_service}
-                iconKey={active.fav_service_icon}
-                description={`Pairs it with ${active.fav_service} for day-to-day production.`}
-              />
-            </div>
-
-            {/* Center divider */}
-            <div aria-hidden className="hidden bg-[#5FBD91]/35 md:block" />
-
-            {/* Right: quote / content */}
-            <div className="relative flex flex-col justify-center px-1 md:pl-10">
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -left-1 -top-2 font-serif text-[4rem] leading-none !text-white/10 md:left-6"
-              >
-                “
-              </span>
-              <p className="relative text-[1.05rem] leading-relaxed sm:text-[1.15rem]">
-                <span className="font-semibold !text-[#ededed]">
-                  {firstSentence}
-                </span>{" "}
-                <span className="!text-[#a1a1a1]">{rest}</span>
-              </p>
-            </div>
-          </motion.div>
-        </AnimatePresence>
+        <div className="mt-10 grid gap-px overflow-hidden rounded-lg border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.08)] sm:mt-12 md:grid-cols-2 lg:grid-cols-3">
+          {TESTIMONIALS.map((t, i) => (
+            <motion.figure
+              key={t.name}
+              initial={{ opacity: 0, y: 16 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.3 }}
+              transition={{ duration: 0.4, ease: EASE, delay: (i % 3) * 0.06 }}
+              className="flex flex-col bg-black p-6"
+            >
+              <blockquote className="flex-1 text-[14px] leading-relaxed !text-[#cfcfcf]">
+                “{t.quote}”
+              </blockquote>
+              <figcaption className="mt-6 flex items-center gap-3">
+                <span
+                  aria-hidden
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[rgba(53,167,116,0.12)] font-mono text-[12px] font-bold !text-[#5FBD91]"
+                >
+                  {initials(t.name)}
+                </span>
+                <span>
+                  <span className="block text-[13px] font-medium !text-[#ededed]">
+                    {t.name}
+                  </span>
+                  <span className="block text-[12px] !text-[#71717a]">
+                    {t.role} · {t.company}
+                  </span>
+                </span>
+              </figcaption>
+            </motion.figure>
+          ))}
+        </div>
       </div>
     </section>
   )
